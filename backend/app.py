@@ -47,6 +47,9 @@ def convert_video():
                 'preferredcodec': 'best',
             }],
             'quiet': True,
+            # Opciones para evitar detección de bot
+            'nocheckcertificate': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
         with YoutubeDL(ydl_opts) as ydl:

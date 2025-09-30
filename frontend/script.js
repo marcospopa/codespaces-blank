@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoTitleElement = document.getElementById('video-title');
     const downloadLinksContainer = document.getElementById('download-links');
 
-    // Define the backend API URL. This will be the address of the Flask service
-    // once orchestrated by Docker Compose.
-    const API_URL = 'https://glorious-goldfish-qv5rpgpp46rhxv9q-5001.app.github.dev/api';
+    // ✅ CAMBIO CRÍTICO: Usa ruta relativa para que pase por el proxy Nginx
+    // Esto funciona porque Nginx redirige /api/* al backend automáticamente
+    const API_URL = '/api';
 
     const setStatus = (message, type = 'loading') => {
         statusMessage.textContent = message;
@@ -34,10 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (downloadData[quality]) {
                 const data = downloadData[quality];
                 const button = document.createElement('a');
-                button.href = `${API_URL}${data.url}`;
+                // ✅ Las URLs de descarga también usan rutas relativas
+                button.href = data.url; // Ya viene como /api/download/...
                 button.textContent = `Download ${quality.charAt(0).toUpperCase() + quality.slice(1)} Quality MP3`;
                 button.className = `download-button ${quality}`;
-                button.setAttribute('download', data.filename); // Suggest a filename to the browser
+                button.setAttribute('download', data.filename);
                 downloadLinksContainer.appendChild(button);
             }
         });
@@ -92,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Allow pressing Enter to trigger conversion
     urlInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent form submission if it were in a form
+            event.preventDefault();
             convertBtn.click();
         }
     });
