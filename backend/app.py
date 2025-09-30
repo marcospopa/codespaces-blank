@@ -10,8 +10,10 @@ from pydub import AudioSegment
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-# Allow CORS for all domains on all routes
-CORS(app)
+
+# Ya NO necesitamos CORS aquí porque Nginx lo maneja
+# Pero lo dejamos por si acaso para desarrollo local
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Define the base directory for temporary audio files within the container
 TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp_audio')
@@ -121,7 +123,11 @@ def download_file(request_id, filename):
     app.logger.info(f"Download request for: {safe_filename} from request_id: {safe_request_id}")
     return send_from_directory(directory, safe_filename, as_attachment=True)
 
+@app.route('/api/health')
+def health():
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'service': 'backend'}), 200
+
 if __name__ == '__main__':
-    # Running on 0.0.0.0 makes the server accessible from the host machine
-    # when running in a container.
+    # Running on 0.0.0.0 makes the server accessible from other containers
     app.run(host='0.0.0.0', port=5001, debug=True)

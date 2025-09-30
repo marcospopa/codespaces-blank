@@ -1,24 +1,51 @@
 version: '3.8'
 
 services:
+  # Proxy Nginx - Punto de entrada único
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: yt-mp3-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Backend Flask - NO expuesto directamente
   backend:
     build: ./backend
     container_name: yt-mp3-backend
-    ports:
-      - "5001:5001"
+    # NO exponemos el puerto al host, solo interno
+    expose:
+      - "5001"
     volumes:
       - audio_data:/app/temp_audio
     restart: unless-stopped
+    networks:
+      - app-network
 
+  # Frontend - NO expuesto directamente
   frontend:
     build: ./frontend
     container_name: yt-mp3-frontend
-    ports:
-      - "80:80"
+    # NO exponemos el puerto al host, solo interno
+    expose:
+      - "80"
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   audio_data:
     driver: local
+
+networks:
+  app-network:
+    driver: bridge

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Define the backend API URL. This will be the address of the Flask service
     // once orchestrated by Docker Compose.
-    const API_URL = 'http://localhost:5001/api';
+    const API_URL = 'https://glorious-goldfish-qv5rpgpp46rhxv9q-5001.app.github.dev/api';
 
     const setStatus = (message, type = 'loading') => {
         statusMessage.textContent = message;
