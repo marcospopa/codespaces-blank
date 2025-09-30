@@ -11,19 +11,17 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Ya NO necesitamos CORS aquí porque Nginx lo maneja
-# Pero lo dejamos por si acaso para desarrollo local
+# CORS configurado (aunque Nginx lo maneja)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Define the base directory for temporary audio files within the container
+# Define the base directory for temporary audio files
 TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp_audio')
-# Ensure the temporary directory exists
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 @app.route('/api/convert', methods=['POST'])
 def convert_video():
     """
-    Handles the conversion of a YouTube video URL to MP3 files of different qualities.
+    Converts a YouTube video URL to MP3 (medium quality only).
     """
     data = request.get_json()
     url = data.get('url')
@@ -62,40 +60,29 @@ def convert_video():
             base_filename = os.path.splitext(downloaded_files[0])[0]
             app.logger.info(f"Successfully downloaded: {original_audio_path}")
 
-        # --- Convert to MP3 with pydub ---
+        # --- Convert to MP3 (Medium Quality Only) ---
         app.logger.info("Loading audio file for conversion.")
         audio = AudioSegment.from_file(original_audio_path)
         app.logger.info("Audio file loaded. Starting MP3 export.")
 
-        qualities = {
-            'low': ('64k', f"{base_filename}_low.mp3"),
-            'medium': ('128k', f"{base_filename}_medium.mp3"),
-            'high': ('320k', f"{base_filename}_high.mp3")
-        }
+        # Solo calidad media (128k)
+        filename = f"{base_filename}_medium.mp3"
+        mp3_path = os.path.join(output_dir, filename)
+        
+        app.logger.info(f"Exporting medium quality to {filename} at 128k...")
+        audio.export(mp3_path, format="mp3", bitrate="128k")
+        app.logger.info("Export completed successfully.")
 
-        output_files = {}
-        for quality, (bitrate, filename) in qualities.items():
-            mp3_path = os.path.join(output_dir, filename)
-            app.logger.info(f"Exporting {quality} quality to {filename} at {bitrate}...")
-            if quality == 'low':
-                mono_audio = audio.set_channels(1)
-                mono_audio.export(mp3_path, format="mp3", bitrate=bitrate)
-            else:
-                audio.export(mp3_path, format="mp3", bitrate=bitrate)
-
-            output_files[quality] = {
-                'url': f'/api/download/{request_id}/{filename}',
-                'filename': filename
-            }
-        app.logger.info("All qualities exported successfully.")
-
-        # --- Cleanup ---
+        # --- Cleanup original file ---
         os.remove(original_audio_path)
         app.logger.info(f"Removed original audio file: {original_audio_path}")
 
         return jsonify({
             'message': 'Conversion successful!',
-            'downloads': output_files,
+            'download': {
+                'url': f'/api/download/{request_id}/{filename}',
+                'filename': filename
+            },
             'video_title': info_dict.get('title', 'Unknown Title')
         })
 
@@ -113,13 +100,12 @@ def download_file(request_id, filename):
     """
     Serves a converted MP3 file for download.
     """
-    # Sanitize inputs to prevent directory traversal
     safe_request_id = os.path.basename(request_id)
     safe_filename = os.path.basename(filename)
 
     directory = os.path.join(TEMP_DIR, safe_request_id)
 
-    # Security check: ensure the resolved path is within the intended directory
+    # Security check
     if not os.path.abspath(directory).startswith(os.path.abspath(TEMP_DIR)):
         return jsonify({'error': 'Invalid request ID'}), 400
 
@@ -132,5 +118,4 @@ def health():
     return jsonify({'status': 'healthy', 'service': 'backend'}), 200
 
 if __name__ == '__main__':
-    # Running on 0.0.0.0 makes the server accessible from other containers
     app.run(host='0.0.0.0', port=5001, debug=True)
